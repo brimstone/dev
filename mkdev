@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# To use, bind something in tmux like the following
+# bind \ split-window -h 'mkdev attach'
+# bind s split-window -v 'mkdev attach'
+# bind C new-window 'mkdev create -v /home:/home -v /tmp:/tmp dev'
+
+# Error handling, everyone loves it
+set -euo pipefail
+
+# set our file to hold our window_id and container_id mapping
+IDFILE="/run/shm/tmuxdev"
+
+# The rest is dynamic, you shouldn't have to change it
+# figure out our window ID
+window_id=$(tmux display-message -p '#{window_id}')
+# figure out our container_id
+container_id=$(awk "/^$window_id/ {print \$2}" "$IDFILE")
+
+# if we didn't have our container mapped already
+if [ -z "$container_id" ]; then
+	# make a new container
+	container_id=$(docker run -t -d "$@")
+	# save our mapping for later
+	echo "$window_id $container_id" >> "$IDFILE"
+fi
+# Figure out our pid from the container ID
+pid=$(docker inspect --format {{.State.Pid}} "$container_id")
+# actually dive into the container
+sudo nsenter --target "$pid" --mount --uts --ipc --net --pid -- "$SHELL" -i
+
+# if we're the last one to use this continaer
+pgrep -f "nsenter.*$pid" >/dev/null \
+|| (
+	# remove our mapping
+	sed -i "/$window_id/d" "$IDFILE"
+	# remove our container
+	docker rm -f "$container_id" &
+)
