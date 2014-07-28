@@ -10,12 +10,14 @@ set -euo pipefail
 
 # set our file to hold our window_id and container_id mapping
 IDFILE="/run/shm/tmuxdev"
+# This could be simply $SHELL, if you want
+shell="/mkshell"
 
 # The rest is dynamic, you shouldn't have to change it
 # figure out our window ID
 window_id=$(tmux display-message -p '#{window_id}')
 # figure out our container_id
-container_id=$(awk "/^$window_id/ {print \$2}" "$IDFILE")
+container_id=$(awk "/^$window_id/ {print \$2}" "$IDFILE" || true)
 
 # if we didn't have our container mapped already
 if [ -z "$container_id" ]; then
@@ -27,7 +29,7 @@ fi
 # Figure out our pid from the container ID
 pid=$(docker inspect --format {{.State.Pid}} "$container_id")
 # actually dive into the container
-sudo nsenter --target "$pid" --mount --uts --ipc --net --pid -- "$SHELL" -i
+sudo nsenter --target "$pid" --mount --uts --ipc --net --pid -- env DOCKER_ENV=$container_id "$shell"
 
 # if we're the last one to use this continaer
 pgrep -f "nsenter.*$pid" >/dev/null \
