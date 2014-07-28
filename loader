@@ -1,0 +1,15 @@
+#!/bin/bash
+cd /home
+for u in *; do
+	echo "Adding user $u"
+	S="/bin/bash"
+	[ -e "$u/.zshrc" -a -n "$(which zsh)" ] && S=$(which zsh)
+	groupadd --gid "$(stat --format %g "$u")" "$u"
+	useradd --uid "$(stat --format %u "$u")" \
+		--gid "$(stat --format %g "$u")" \
+		--groups sudo \
+		--shell "$S" "$u"
+done
+while true; do 
+sleep 100h
+done
