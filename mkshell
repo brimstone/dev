@@ -1,0 +1,6 @@
+#!/bin/bash
+export USER=$SUDO_USER
+eval "HOME=~$USER"
+export HOME
+export TMUX=1
+su - -p -s /usr/bin/zsh $USER
